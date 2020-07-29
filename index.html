@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tiles game</title>
+</head>
+<body>
+    <div id="app">
+    </div>
+</body>
+<style>
+    *{
+  box-sizing: border-box;
+}
+
+#app{
+  margin: 0 auto;
+  display:flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+#gameField{
+  width:500px;
+  height: 500px;
+  display:flex;
+  flex-wrap: wrap;
+  flex-direction: row;
+  align-content: flex-start;
+}
+
+#game-interface{
+  flex: 0 0 100%;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+#info-box{
+  flex: 0 0 100%;
+  justify-content:center;
+  align-items: center;
+  text-align: center;
+  margin-top: 5px;
+  margin-bottom: 15px;
+  border: 2px solid gray;
+}
+
+.game-entity{
+  margin: 0;
+  padding: 0;
+  border: 0.5px solid rgba(0,0,0, .2)
+}
+
+</style>
+<script>
+    window.onload = () => {
+  const container = document.getElementById("app")
+  const gameField = document.createElement('div')
+  
+  const difficults = [
+    {id: 0, name: 'Easy', entitiesCount: 4, attemptsCount: 4/2, selected: true},
+    {id: 1, name: 'Medium', entitiesCount: 16, attemptsCount: 16/2, selected: false},
+    {id: 2, name: 'Hard', entitiesCount: 64, attemptsCount: 64/2, selected: false},
+  ]
+  
+  let difficult = {}
+  let entities = []
+  let triesCounter = 0
+  let scores = 0
+  
+  let lock = false
+
+  
+  let gameInterface, startBtn, showAllBtn, hideAllBtn, infoBox, difficultySelector, roundCounter
+  const initGameField = () => {
+    gameField.setAttribute("id", "gameField")
+    container.appendChild(gameField)
+  }
+  
+  const initGameInterface = () => {
+    
+    gameInterface = document.createElement("div")
+    gameInterface.setAttribute("id", "game-interface")
+    
+    
+    startBtn = document.createElement("button")
+    startBtn.setAttribute("id", "start-btn")
+    startBtn.innerText = "Start the game"
+    
+    showAllBtn = document.createElement("button")
+    showAllBtn.setAttribute("id", "show-all-btn")
+    showAllBtn.innerText = "Show all"
+    
+    hideAllBtn = document.createElement("button")
+    hideAllBtn.setAttribute("id", "show-all-btn")
+    hideAllBtn.innerText = "Hide all"
+    
+    infoBox = document.createElement("div")
+    infoBox.setAttribute("id", "info-box")
+    
+    difficultySelector = document.createElement("select")
+    difficultySelector.setAttribute("id", "difficulty-selector")
+    
+    for(el of difficults){
+      let item = document.createElement("option")
+      item.setAttribute("data-difficult-id", el.id)
+      item.innerHTML = el.name+" ("+el.entitiesCount+" tiles)"
+      if(el.selected === true) item.setAttribute("selected", "true")
+      
+      difficultySelector.appendChild(item)
+    }
+    
+    gameInterface.appendChild(difficultySelector)
+    gameInterface.appendChild(startBtn)
+    gameInterface.appendChild(showAllBtn)
+    gameInterface.appendChild(hideAllBtn)
+  }
+  
+  const setInfo = (string) => {
+    infoBox.innerText = string
+    gameInterface.appendChild(infoBox)
+  }
+  
+  
+  
+  const renderGameInterface = () => {
+    container.appendChild(gameInterface)
+  }
+  
+  const renderGameEntities = () => {
+    gameField.innerHTML = ""
+    
+    for(el of entities){
+      
+      if( el.closed === true &&  el.opened !== true && el.checked !== true) {
+        
+          el.dom.style.background = 'transparent'
+        
+      console.log(el.checked)
+        
+        
+      }else{
+        el.dom.style.background = el.color
+      }
+       
+      
+      gameField.appendChild(el.dom)
+    }
+  }
+  
+  
+  const destroyGame = () => {
+    entities = []
+    gameField.innerHTML = ""
+  }
+
+  const addEventListeners = () => {
+    //interface
+    difficultySelector.addEventListener('change', (e) => {
+      let selectedDifficult = difficults.find(dif => dif.selected === true)
+      
+      let id = e.target.selectedOptions[0].getAttribute('data-difficult-id')
+      
+      let newDifficult = difficults.find(dif => dif.id == id)
+     
+      selectedDifficult.selected = false
+      newDifficult.selected = true
+      setDifficulty(newDifficult.name)
+      setInfo("Set difficulty as "+newDifficult.name)
+    })
+    
+    showAllBtn.addEventListener('click', (e) => {
+      showAll()
+    })
+    
+    hideAllBtn.addEventListener('click', (e) => {
+      
+      closeAll()
+    })
+    
+    startBtn.addEventListener('click', (e) => {
+      console.log("Start game")
+      startGame()
+    })
+    
+    //entities
+    for(el of entities){
+      el.dom.addEventListener('click', (e) => {
+        let id = e.target.getAttribute('data-entity-id')
+        
+        let currentEntity = entities.find(entity => entity.id == id && entity.checked === false && entity.closed === true)
+        
+        let openedEntity = entities.find(entity =>  entity.id != id && entity.closed === false && entity.checked === false)
+        console.log('Opened entity', openedEntity)
+        console.log("Current entity", currentEntity)
+        if(currentEntity !== undefined && lock === false) currentEntity.closed = false
+        renderGameEntities(gameField)
+        if(openedEntity !== undefined && currentEntity !== undefined && lock === false){
+          
+          
+          if(openedEntity.color !== currentEntity.color ){
+         
+              triesCounter++
+            
+            if(difficult.attemptsCount <= triesCounter){
+            setInfo("You lost! Try again!")
+              lock = true
+              
+              setTimeout(() => {
+            lock = false
+            currentEntity.closed = true
+            openedEntity.closed = true
+              console.log('Game restarted')
+            renderGameEntities()
+                destroyGame()
+          }, 500)
+              
+            }else{
+              lock = true
+              setInfo("Attempts left: " + (difficult.attemptsCount -  triesCounter))
+              setTimeout(() => {
+                lock = false
+            currentEntity.closed = true
+            openedEntity.closed = true
+            renderGameEntities()
+          }, 500)
+            }
+            
+            
+          }else{
+       
+            scores ++
+            setInfo("Passed "+scores+" round")
+            openedEntity.checked = true
+            currentEntity.checked = true
+          } 
+        }
+        
+        
+        if(entities.length/2 === scores){
+              
+              destroyGame()
+          
+              setInfo("You won!")
+        }
+      })
+    }
+  }
+  
+  
+  const showAll = () => {
+    entities.map(el => el.opened = true)
+    renderGameEntities()
+  }
+  
+  const closeAll = () => {
+    entities.map(el => el.opened = false)
+    renderGameEntities()
+  }
+  
+  const setDifficulty = (name) => {
+    difficult = difficults.find(el => { return el.name == name})
+    console.log('Set dificulty as ' + difficult.name)
+  }
+  
+  const colorExists = (color) => {
+    return entities.find(el => el.color === color) ? true: false
+  }
+  
+  const generateEntities = () => {
+    entities = []
+    for(let i = 0; i < difficult.entitiesCount; i+=2){
+      let color = getRandomColor()
+      let firstNewEntity = {
+        id: i,
+        color: color,
+        closed: true,
+        dom: document.createElement('div'),
+        checked: false
+      }
+      
+      
+      let secondNewEntity = {
+        id: i+1,
+        color: color,
+        closed: true,
+        dom: document.createElement('div'),
+        checked: false
+        
+      }
+      
+      firstNewEntity.dom.setAttribute("data-entity-id", firstNewEntity.id)
+      firstNewEntity.dom.setAttribute("class", "game-entity")
+      
+      firstNewEntity.dom.style.background = color
+      firstNewEntity.dom.style.width =  100 / Math.sqrt(difficult.entitiesCount) + '%';
+      firstNewEntity.dom.style.height =  100 / Math.sqrt(difficult.entitiesCount) + '%';
+      
+      secondNewEntity.dom.setAttribute("data-entity-id", secondNewEntity.id)
+      secondNewEntity.dom.setAttribute("class", "game-entity")
+      
+      
+      secondNewEntity.dom.style.background = color
+      secondNewEntity.dom.style.width =  100 / Math.sqrt(difficult.entitiesCount) + '%';
+      secondNewEntity.dom.style.height =  100 / Math.sqrt(difficult.entitiesCount) + '%';
+      
+      entities = [...entities, firstNewEntity, secondNewEntity]
+    }
+    
+    console.log(entities)
+  }
+  
+    const shuffleEntities = () => {
+      entities = shuffleArray(entities)
+      
+      console.log(entities)
+    }
+    const getRandomInt = (max) => {
+  return Math.floor(Math.random() * Math.floor(max));
+}
+    const getRandomColor = () => {
+      let color = "rgb(" +getRandomInt(255)+","+getRandomInt(255)+","+getRandomInt(255)+")"
+      if(!colorExists(color))
+      return color
+    }
+    
+    const shuffleArray = arr => arr.sort(() => Math.random() - 0.5);
+    
+    const startGame = () => {
+      
+      container.innerHTML = ""
+      initGameInterface()
+      renderGameInterface()
+      triesCounter= 0
+      scores = 0
+      initGameField(container)
+      let selectedDifficult = difficults.find(dif => dif.selected === true)
+      setDifficulty(selectedDifficult.name)
+      generateEntities()
+      shuffleEntities()
+      renderGameEntities(gameField)
+      addEventListeners()
+      setInfo("Game started! You have "+difficult.attemptsCount+" attempts to open all tiles!")
+    }
+    
+    const restartGame = () => {
+     container.innerHTML = ""
+     initGameInterface()
+     renderGameInterface()
+     triesCounter= 0
+     scores = 0
+     initGameField(container)
+     let selectedDifficult = difficults.find(dif => dif.selected === true)
+     setDifficulty(selectedDifficult.name)
+     generateEntities()
+     shuffleEntities()
+     renderGameEntities(gameField)
+     addEventListeners()
+  }
+    
+  const initGame = () => {
+      initGameInterface()
+      renderGameInterface()
+      addEventListeners()
+      
+  }
+ 
+  initGame()
+
+  }
+
+</script>
+</html>
